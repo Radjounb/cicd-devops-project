@@ -1,0 +1,41 @@
+name: CI/CD Pipeline to AWS ECS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build Docker image
+        run: docker build -t cicd-app .
+
+      - name: Tag Docker image
+        run: docker tag cicd-app:latest 618401929619.dkr.ecr.us-east-1.amazonaws.com/cicd-app:latest
+
+      - name: Push Docker image
+        run: docker push 618401929619.dkr.ecr.us-east-1.amazonaws.com/cicd-app:latest
+
+      - name: Deploy to Amazon ECS
+        run: |
+          aws ecs update-service \
+            --cluster cicd-cluster \
+            --service cicd-app-service \
+            --force-new-deployment
